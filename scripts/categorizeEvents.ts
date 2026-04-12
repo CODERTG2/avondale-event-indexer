@@ -9,23 +9,33 @@ interface EventData {
   endDate?: string;
   organizer: { name: string };
   url?: string;
-  genres?: string[];
+  genre?: string;
+  // ageGroup?: string;
 }
 
-async function groqCategorize(events: { id: number; name: string; organizer: string }[]) {
+async function groqCategorizeGenre(event: { name: string; organizer: string }) {
   const systemPrompt = `
-            You are an expert at categorizing events. Return a JSON object containing an "events" array of the same length as the input array. Each object in the "events" array should have the same id as the input object, and a genres string with 1 genre.
-            List of genres (you must only use these): Music, Dance, Theater, Comedy, Creative Arts, Tech, Environment, Games, Community, Social, Youth, Food & Drink, Literary. 
+            You are an expert at categorizing events. Return a JSON object with a "genre" key.
+            List of genres (you must only use these): Music, Dance, Theater, Comedy, Creative Arts, Tech, Environment, Games, Community, Social, Food & Drink, Literary.
             Example output:
-            {"events": [{"id": 1, "genres": "Comedy"}, {"id": 2, "genres": "Literary"}]}
+            {"genre": "Comedy"}
           `;
-  const userPrompt = `Categorize these events following the example output as a JSON object using the genres given only: ${JSON.stringify(events)}`;
+  const userPrompt = `Categorize this event following the example output as a JSON object using the genres and age groups given only: ${JSON.stringify(event)}`;
   return callGroq(systemPrompt, userPrompt);
 }
 
-async function categorizeEvents(events: EventData[]) {
-  const numEvents = 50;
+// async function groqCategorizeAge(event: { name: string; organizer: string }) {
+//   const systemPrompt = `
+//             You are an expert at categorizing events. Return a JSON object with an "ageGroup" key.
+//             List of age groups (you must only use these): All Ages, Youth, Adult, Elderly.
+//             Example output:
+//             {"ageGroup": "All Ages"}
+//           `;
+//   const userPrompt = `Categorize this event following the example output as a JSON object using the genres and age groups given only: ${JSON.stringify(event)}`;
+//   return callGroq(systemPrompt, userPrompt);
+// }
 
+async function categorizeEvents(events: EventData[]) {
   const minimalEvents = events.map((e, idx) => ({
     id: idx,
     name: e.name,
@@ -36,23 +46,34 @@ async function categorizeEvents(events: EventData[]) {
 
   const categorizedEvents: EventData[] = [];
 
-  for (let i = 0; i < minimalEvents.length; i += numEvents) {
-    console.log(`Processing chunk ${i} to ${i + numEvents}`);
-    const chunk = i >= minimalEvents.length ? minimalEvents.slice(i) : minimalEvents.slice(i, i + numEvents);
-    const categorizedChunk = await groqCategorize(chunk);
-    const eventsArray = categorizedChunk.events || [];
-    const eventsWithGenres = eventsArray.map((catItem: any) => {
-      const originalEvent = events[catItem.id];
-      return {
-        ...originalEvent,
-        genres: [catItem.genres || "Miscellaneous"]
-      };
-    });
+  for (let i = 0; i < minimalEvents.length; i++) {
+    const percent = Math.round(((i + 1) / minimalEvents.length) * 100);
+    const bar = '█'.repeat(Math.round(percent / 5)).padEnd(20, '░');
+    process.stdout.write(`\r[${bar}] ${percent}% | ${i + 1}/${minimalEvents.length}`);
 
-    categorizedEvents.push(...eventsWithGenres);
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    try {
+      const genreResult = await groqCategorizeGenre({ name: minimalEvents[i].name, organizer: minimalEvents[i].organizer });
+      // const ageResult = await groqCategorizeAge({ name: minimalEvents[i].name, organizer: minimalEvents[i].organizer });
+      const originalEvent = events[minimalEvents[i].id];
+
+      categorizedEvents.push({
+        ...originalEvent,
+        genre: genreResult.genre
+        // ageGroup: ageResult.ageGroup
+      });
+    } catch (e) {
+      console.error(`Error categorizing event ${i}:`, e);
+      categorizedEvents.push({
+        ...events[minimalEvents[i].id],
+        genre: "Miscellaneous"
+        // ageGroup: "All Ages"
+      });
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
 
+  console.log(); // Complete the progress bar line
   return categorizedEvents;
 }
 

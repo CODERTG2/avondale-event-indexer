@@ -1,7 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import 'dotenv/config';
-import { callGroq } from '../src/utils/groqClient.ts';
 
 interface EventData {
     name: string;
@@ -9,72 +7,115 @@ interface EventData {
     endDate?: string;
     organizer: { name: string };
     url?: string;
-    genres?: string[];
+    genre?: string;
 }
 
-async function groqDeduplicate(events: { id: number; name: string; organizer: string; startDate?: string }[]) {
-    const systemPrompt = `
-            You are an expert at deduplicating events. Return a JSON object containing an "events" array. The array should contain ONLY the unique events. Remove duplicated/repeated events, especially those with the exact same name, organizer, and date. Preserve the original "id". Example: {"events": [{"id": 0}, {"id": 2}]}
-          `;
-    const userPrompt = `Deduplicate these events and return a JSON object with an "events" array: ${JSON.stringify(events)}`;
-    return callGroq(systemPrompt, userPrompt);
+function parseDay(dateStr?: string): string {
+    if (!dateStr) return "unknown";
+    return dateStr.slice(0, 10);
+}
+
+function hasTime(dateStr?: string): boolean {
+    return !!dateStr && dateStr.length > 10;
+}
+
+function getMs(dateStr?: string): number | null {
+    if (!dateStr || !hasTime(dateStr)) return null;
+    const t = new Date(dateStr).getTime();
+    return isNaN(t) ? null : t;
+}
+
+function areOverlapping(e1: EventData, e2: EventData): boolean {
+    if (!hasTime(e1.startDate) || !hasTime(e1.endDate) ||
+        !hasTime(e2.startDate) || !hasTime(e2.endDate)) {
+        return true;
+    }
+
+    const start1 = getMs(e1.startDate) || 0;
+    const end1 = getMs(e1.endDate) || 0;
+
+    const start2 = getMs(e2.startDate) || 0;
+    const end2 = getMs(e2.endDate) || 0;
+
+    return start1 <= end2 && start2 <= end1;
+}
+
+function scoreInfo(e: EventData): number {
+    let score = 0;
+    if (e.name) score += 1;
+    if (e.organizer?.name) score += 1;
+    if (e.startDate && hasTime(e.startDate)) score += 2;
+    if (e.endDate && hasTime(e.endDate)) score += 2;
+    if (e.url) score += 1;
+    if (e.genre) score += 1;
+    return score;
 }
 
 async function deduplicateEvents(events: EventData[]) {
-    const eventsWithId = events.map((e, idx) => ({ ...e, originalId: idx }));
-
-    const eventsByGenre: Record<string, typeof eventsWithId> = {};
-    for (const event of eventsWithId) {
-        const genre = event.genres[0];
-        if (!eventsByGenre[genre]) {
-            eventsByGenre[genre] = [];
-        }
-        eventsByGenre[genre].push(event);
+    const eventsByDate: Record<string, EventData[]> = {};
+    for (const event of events) {
+        const day = parseDay(event.startDate);
+        if (!eventsByDate[day]) eventsByDate[day] = [];
+        eventsByDate[day].push(event);
     }
 
     const deduplicatedResults: EventData[] = [];
 
-    for (const [genre, genreEvents] of Object.entries(eventsByGenre)) {
-        console.log(`Deduplicating ${genreEvents.length} events in genre: ${genre}`);
-
-        genreEvents.sort((a, b) => {
-            const orgA = a.organizer?.name || "";
-            const orgB = b.organizer?.name || "";
-            return orgA.localeCompare(orgB);
+    for (const [day, dayEvents] of Object.entries(eventsByDate)) {
+        dayEvents.sort((a, b) => {
+            const timeA = getMs(a.startDate) || -1;
+            const timeB = getMs(b.startDate) || -1;
+            return timeA - timeB;
         });
 
-        const minimalEvents = genreEvents.map(e => ({
-            id: e.originalId,
-            name: e.name,
-            organizer: e.organizer?.name || "",
-            startDate: e.startDate
-        }));
+        const pairs: [number, number][] = [];
+        for (let i = 0; i < dayEvents.length; i++) {
+            for (let j = i + 1; j < dayEvents.length; j++) {
+                // Must verbatim have the same organizer
+                const org1 = dayEvents[i].organizer?.name?.toLowerCase().trim() || "";
+                const org2 = dayEvents[j].organizer?.name?.toLowerCase().trim() || "";
 
-        for (let i = 0; i < minimalEvents.length; i += 50) {
-            const chunk = minimalEvents.slice(i, i + 50);
-
-            if (chunk.length === 1) {
-                deduplicatedResults.push(events[chunk[0].id]);
-                continue;
-            }
-
-            try {
-                const uniqueItems = await groqDeduplicate(chunk);
-                const eventsArray = uniqueItems.events || [];
-                for (const item of eventsArray) {
-                    if (item.id !== undefined && events[item.id]) {
-                        deduplicatedResults.push(events[item.id]);
-                    }
+                if (org1 === org2 && areOverlapping(dayEvents[i], dayEvents[j])) {
+                    pairs.push([i, j]);
                 }
-
-                console.log(`Removed ${chunk.length - eventsArray.length} events from genre: ${genre}`);
-
-            } catch (e) {
-                console.error(`Error deduplicating chunk for ${genre}:`, e);
-                chunk.forEach(item => deduplicatedResults.push(events[item.id]));
             }
+        }
 
-            await new Promise(resolve => setTimeout(resolve, 5000));
+        const removedIndices = new Set<number>();
+
+        if (pairs.length === 0) {
+            deduplicatedResults.push(...dayEvents);
+            continue;
+        }
+
+        for (let pIdx = 0; pIdx < pairs.length; pIdx++) {
+            const [i, j] = pairs[pIdx];
+
+
+            if (removedIndices.has(i) || removedIndices.has(j)) continue;
+
+            const e1 = dayEvents[i];
+            const e2 = dayEvents[j];
+
+            const t1 = e1.name.toLowerCase().trim();
+            const t2 = e2.name.toLowerCase().trim();
+
+            if (t1 === t2) {
+                let keepIndex = scoreInfo(e2) > scoreInfo(e1) ? 1 : 0;
+
+                const kept = keepIndex === 0 ? e1 : e2;
+                const removed = keepIndex === 0 ? e2 : e1;
+                console.log(`[Exact Match] Kept: "${kept.name}" | Removed: "${removed.name}"`);
+
+                if (keepIndex === 0) removedIndices.add(j);
+                else removedIndices.add(i);
+            }
+        }
+
+        for (let i = 0; i < dayEvents.length; i++) {
+            if (!removedIndices.has(i)) {
+                deduplicatedResults.push(dayEvents[i]);
+            }
         }
     }
 
@@ -90,7 +131,7 @@ async function main() {
 
     const outputPath = path.join(process.cwd(), 'output', 'deduplicatedEvents.json');
     fs.writeFileSync(outputPath, JSON.stringify(deduplicatedEvents, null, 2));
-    console.log(`Finished! Saved ${deduplicatedEvents.length} deduplicated events to ${outputPath} (started with ${rawEvents.length}).`);
+    console.log(`\nFinished! Saved ${deduplicatedEvents.length} deduplicated events to ${outputPath} (started with ${rawEvents.length}).`);
 }
 
 main();

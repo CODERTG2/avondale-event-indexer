@@ -1,22 +1,11 @@
-import 'dotenv/config';
-
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const MODEL = 'llama-3.3-70b-versatile';
-
-if (!GROQ_API_KEY) {
-    console.error("Please add GROQ_API_KEY to your .env file.");
-    process.exit(1);
-}
-
 export async function callGroq(systemPrompt: string, userPrompt: string) {
-    const response = await fetch(`https://api.groq.com/openai/v1/chat/completions`, {
+    const response = await fetch(`http://localhost:11434/v1/chat/completions`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_API_KEY}`
         },
         body: JSON.stringify({
-            model: MODEL,
+            model: 'llama3.1',
             messages: [
                 {
                     role: 'system',
@@ -33,8 +22,8 @@ export async function callGroq(systemPrompt: string, userPrompt: string) {
 
     const data = await response.json();
     if (!data.choices || !data.choices[0]) {
-        console.error("Groq API Error:", JSON.stringify(data, null, 2));
-        throw new Error("Invalid response from Groq API");
+        console.error("Local API Error:", JSON.stringify(data, null, 2));
+        throw new Error("Invalid response from local Ollama API");
     }
 
     const content = data.choices[0].message.content;
