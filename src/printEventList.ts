@@ -5,7 +5,6 @@ import type { Event } from './definitions.ts';
 export function printEventList(events: Event[], filePath = "output/eventList.md") {
 
     events.sort(eventSort);
-    events = cleanupEvents(events, customAvondaleFilter);
 
     try {
         fs.writeFileSync("output/events.json", JSON.stringify(events, null, 2));
@@ -47,7 +46,7 @@ export function printEventList(events: Event[], filePath = "output/eventList.md"
 /**
 * Remove closed events and trim names that include locations.
 */
-function cleanupEvents(events: Event[], customFilter?: (event: Event) => boolean): Event[] {
+export function cleanupEvents(events: Event[], customFilter?: (event: Event) => boolean): Event[] {
     events = events.filter(event => {
         let eventName = event.name as string;
 
@@ -84,7 +83,7 @@ function cleanupEvents(events: Event[], customFilter?: (event: Event) => boolean
 /**
  * Remove common duplicate events or non-events from the list.
  */
-function customAvondaleFilter(event: Event): boolean {
+export function customAvondaleFilter(event: Event): boolean {
 
     if (eventNameMatch(event, "Two Twenty-Two Tuesday","Kitchen 17"))
         return false;

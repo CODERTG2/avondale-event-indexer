@@ -3,7 +3,7 @@ import path from 'path';
 import 'dotenv/config';
 import { callGroq } from '../src/utils/groqClient.ts';
 
-interface EventData {
+export interface EventData {
   name: string;
   startDate: string;
   endDate?: string;
@@ -35,7 +35,7 @@ async function groqCategorizeGenre(event: { name: string; organizer: string }) {
 //   return callGroq(systemPrompt, userPrompt);
 // }
 
-async function categorizeEvents(events: EventData[]) {
+export async function categorizeEvents(events: EventData[]) {
   const minimalEvents = events.map((e, idx) => ({
     id: idx,
     name: e.name,
@@ -76,15 +76,3 @@ async function categorizeEvents(events: EventData[]) {
   console.log(); // Complete the progress bar line
   return categorizedEvents;
 }
-
-async function main() {
-  const rawEvents: EventData[] = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'output', 'events.json'), 'utf-8'));
-  console.log(`Starting categorization of ${rawEvents.length} events...`);
-  const categorizedEvents = await categorizeEvents(rawEvents);
-
-  const outputPath = path.join(process.cwd(), 'output', 'categorizedEvents.json');
-  fs.writeFileSync(outputPath, JSON.stringify(categorizedEvents, null, 2));
-  console.log(`Saved ${categorizedEvents.length} categorized events to ${outputPath}`);
-}
-
-main();

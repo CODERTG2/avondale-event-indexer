@@ -3,23 +3,26 @@ import path from 'path';
 
 interface EventData {
     name: string;
-    startDate: string;
-    endDate?: string;
+    startDate: string | Date;
+    endDate?: string | Date;
     organizer: { name: string };
     url?: string;
     genre?: string;
 }
 
-function parseDay(dateStr?: string): string {
+function parseDay(dateStr?: string | Date): string {
     if (!dateStr) return "unknown";
-    return dateStr.slice(0, 10);
+    const str = dateStr instanceof Date ? dateStr.toISOString() : String(dateStr);
+    return str.slice(0, 10);
 }
 
-function hasTime(dateStr?: string): boolean {
-    return !!dateStr && dateStr.length > 10;
+function hasTime(dateStr?: string | Date): boolean {
+    if (!dateStr) return false;
+    const str = dateStr instanceof Date ? dateStr.toISOString() : String(dateStr);
+    return str.length > 10;
 }
 
-function getMs(dateStr?: string): number | null {
+function getMs(dateStr?: string | Date): number | null {
     if (!dateStr || !hasTime(dateStr)) return null;
     const t = new Date(dateStr).getTime();
     return isNaN(t) ? null : t;
@@ -51,7 +54,7 @@ function scoreInfo(e: EventData): number {
     return score;
 }
 
-async function deduplicateEvents(events: EventData[]) {
+export async function deduplicateEvents(events: EventData[]) {
     const eventsByDate: Record<string, EventData[]> = {};
     for (const event of events) {
         const day = parseDay(event.startDate);
@@ -71,7 +74,6 @@ async function deduplicateEvents(events: EventData[]) {
         const pairs: [number, number][] = [];
         for (let i = 0; i < dayEvents.length; i++) {
             for (let j = i + 1; j < dayEvents.length; j++) {
-                // Must verbatim have the same organizer
                 const org1 = dayEvents[i].organizer?.name?.toLowerCase().trim() || "";
                 const org2 = dayEvents[j].organizer?.name?.toLowerCase().trim() || "";
 
@@ -121,17 +123,3 @@ async function deduplicateEvents(events: EventData[]) {
 
     return deduplicatedResults;
 }
-
-async function main() {
-    const inputFilePath = path.join(process.cwd(), 'output', 'categorizedEvents.json');
-    const rawEvents: EventData[] = JSON.parse(fs.readFileSync(inputFilePath, 'utf-8'));
-    console.log(`Starting deduplication of ${rawEvents.length} events...`);
-
-    const deduplicatedEvents = await deduplicateEvents(rawEvents);
-
-    const outputPath = path.join(process.cwd(), 'output', 'deduplicatedEvents.json');
-    fs.writeFileSync(outputPath, JSON.stringify(deduplicatedEvents, null, 2));
-    console.log(`\nFinished! Saved ${deduplicatedEvents.length} deduplicated events to ${outputPath} (started with ${rawEvents.length}).`);
-}
-
-main();
