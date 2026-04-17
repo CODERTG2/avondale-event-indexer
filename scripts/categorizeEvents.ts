@@ -10,6 +10,7 @@ export interface EventData {
   organizer: { name: string };
   url?: string;
   genre?: string;
+  numLikes?: number;
   // ageGroup?: string;
 }
 
@@ -58,14 +59,16 @@ export async function categorizeEvents(events: EventData[]) {
 
       categorizedEvents.push({
         ...originalEvent,
-        genre: genreResult.genre
+        genre: genreResult.genre,
+        numLikes: 0
         // ageGroup: ageResult.ageGroup
       });
     } catch (e) {
       console.error(`Error categorizing event ${i}:`, e);
       categorizedEvents.push({
         ...events[minimalEvents[i].id],
-        genre: "Miscellaneous"
+        genre: "Miscellaneous",
+        numLikes: 0
         // ageGroup: "All Ages"
       });
     }

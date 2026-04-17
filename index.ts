@@ -74,7 +74,6 @@ async function main() {
     }
 
     if (!progressJSON[4].status) {
-        // --- 5. Export to MongoDB ---
         console.log("\n==============================================");
         console.log("STAGE 5: EXPORTING TO MONGODB");
         console.log("==============================================");
@@ -87,7 +86,6 @@ async function main() {
             const client = new MongoClient(uri);
             try {
                 await client.connect();
-                // Automatically targets the database defined in the URI string
                 const db = client.db();
                 const collection = db.collection('events');
 
