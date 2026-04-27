@@ -1,6 +1,3 @@
-import fs from 'fs';
-import path from 'path';
-
 interface EventData {
     name: string;
     startDate: string | Date;
@@ -74,8 +71,8 @@ export async function deduplicateEvents(events: EventData[]) {
         const pairs: [number, number][] = [];
         for (let i = 0; i < dayEvents.length; i++) {
             for (let j = i + 1; j < dayEvents.length; j++) {
-                const org1 = dayEvents[i].organizer?.name?.toLowerCase().trim() || "";
-                const org2 = dayEvents[j].organizer?.name?.toLowerCase().trim() || "";
+                const org1 = String(dayEvents[i].organizer?.name || "").toLowerCase().trim();
+                const org2 = String(dayEvents[j].organizer?.name || "").toLowerCase().trim();
 
                 if (org1 === org2 && areOverlapping(dayEvents[i], dayEvents[j])) {
                     pairs.push([i, j]);
