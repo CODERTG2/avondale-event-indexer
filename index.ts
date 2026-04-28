@@ -7,6 +7,7 @@ import { categorizeEvents } from "./scripts/categorizeEvents.ts";
 import { deduplicateEvents } from "./scripts/deduplicateEvents.ts";
 import { exportDB } from "./scripts/exportDB.ts";
 import { embedEvents } from "./scripts/embedEvents.ts";
+import { postAllPhotos } from "./scripts/postEvents.ts";
 
 async function main() {
     const orgsFilePath = path.join(process.cwd(), 'organizations.json');
@@ -97,10 +98,19 @@ async function main() {
         console.log("STAGE 6: EXPORTING TO MONGODB");
         console.log("==============================================");
         await exportDB(embeddedEvents);
-
-        for (const progress of progressJSON) { progress.status = false; }
+        progressJSON[5].status = true;
         fs.writeFileSync(path.join(process.cwd(), 'output/progress.json'), JSON.stringify(progressJSON, null, 2), 'utf8');
     }
+
+    // if (!progressJSON[6].status) {
+    //     console.log("\n==============================================");
+    //     console.log("STAGE 7: POSTING PHOTOS TO INSTAGRAM");
+    //     console.log("==============================================");
+    //     await postAllPhotos(path.join(process.cwd(), 'output/posts'));
+
+    //     progressJSON[6].status = true;
+    //     fs.writeFileSync(path.join(process.cwd(), 'output/progress.json'), JSON.stringify(progressJSON, null, 2), 'utf8');
+    // }
 
     console.log("Pipeline complete! Data is ready in /output.");
 }
