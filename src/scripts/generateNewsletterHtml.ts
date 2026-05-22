@@ -1,12 +1,12 @@
 import fs from 'fs';
-import { formatTimeRange, formatDay, isISODate, getDateFromISODate } from '../src/utils/time.ts';
-import type { Event } from '../src/definitions.ts';
+import { formatTimeRange, formatDay, isISODate, getDateFromISODate } from '../utils/time.ts';
+import type { Event } from '../definitions.ts';
 
 export function generateNewsletterHtml(filePath = "output/newsletterEvents.html") {
 
     let events = JSON.parse(fs.readFileSync('./output/events.json', 'utf-8')) as Event[];
     events = filterEventsForUpcomingWeek(events);
-    
+
     let currentDay = '';
     let textOutput = '';
     events.forEach(event => {
@@ -26,8 +26,8 @@ export function generateNewsletterHtml(filePath = "output/newsletterEvents.html"
         const organizationName = event.organizer?.name || "";
         const timeRange = formatTimeRange(event);
 
-        let nameHtml = event.url? `<a href="${event.url}" target="_blank">${event.name}</a>` : event.name;
-        textOutput += `<tr><td style="width: 90px; vertical-align: top;  padding-bottom: 10px;"><p style="text-align: right; padding-right: 10px;"><strong>${timeRange}</strong></p></td><td style="padding-bottom: 10px;">${nameHtml}${organizationName ? ` - ${organizationName}`: ""}</p></td></tr>`;
+        let nameHtml = event.url ? `<a href="${event.url}" target="_blank">${event.name}</a>` : event.name;
+        textOutput += `<tr><td style="width: 90px; vertical-align: top;  padding-bottom: 10px;"><p style="text-align: right; padding-right: 10px;"><strong>${timeRange}</strong></p></td><td style="padding-bottom: 10px;">${nameHtml}${organizationName ? ` - ${organizationName}` : ""}</p></td></tr>`;
     });
 
     //add closing tags for the last day

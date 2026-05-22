@@ -9,8 +9,8 @@
     "allowJs": true
   },
   "include": [
-    "src/**/*.*", 
-    "scripts/**/*.*",
+    "src/**/*.*",
+    "src/scripts/**/*.*",
     "index.ts",
   ],
   "exclude": [

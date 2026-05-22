@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import 'dotenv/config';
-import { callGroq } from '../src/utils/groqClient.ts';
+import { callGroq } from '../utils/groqClient.ts';
 
 export interface EventData {
   name: string;

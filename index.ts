@@ -3,11 +3,11 @@ import path from 'path';
 import 'dotenv/config';
 import { indexEvents } from "./src/indexEvents.ts";
 import { printEventList, cleanupEvents, customAvondaleFilter } from "./src/printEventList.ts";
-import { categorizeEvents } from "./scripts/categorizeEvents.ts";
-import { deduplicateEvents } from "./scripts/deduplicateEvents.ts";
-import { exportDB } from "./scripts/exportDB.ts";
-import { embedEvents } from "./scripts/embedEvents.ts";
-import { postAllPhotos } from "./scripts/postEvents.ts";
+import { categorizeEvents } from "./src/scripts/categorizeEvents.ts";
+import { deduplicateEvents } from "./src/scripts/deduplicateEvents.ts";
+import { exportDB } from "./src/scripts/exportDB.ts";
+import { embedEvents } from "./src/scripts/embedEvents.ts";
+import { postAllPhotos } from "./src/scripts/postEvents.ts";
 
 async function main() {
     const orgsFilePath = path.join(process.cwd(), 'organizations.json');
