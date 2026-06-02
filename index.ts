@@ -112,6 +112,11 @@ async function main() {
     //     fs.writeFileSync(path.join(process.cwd(), 'output/progress.json'), JSON.stringify(progressJSON, null, 2), 'utf8');
     // }
 
+    for (const progress of progressJSON) {
+        progress.status = false;
+    }
+    fs.writeFileSync(path.join(process.cwd(), 'output/progress.json'), JSON.stringify(progressJSON, null, 2), 'utf8');
+
     console.log("Pipeline complete! Data is ready in /output.");
 }
 
